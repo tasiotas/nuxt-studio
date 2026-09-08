@@ -95,6 +95,8 @@
     },
     "validation": {
       "commitRequired": "Commit message is required",
+      "noCollectionForFileName": "No collection supports this filename in this folder. Enter a filename that matches a collection source.",
+      "noCollectionForPath": "No collection matches {path}. Check the filename and collection source patterns.",
       "nameEmpty": "Name cannot be empty",
       "nameEndsWithDot": "Name cannot end with '.'",
       "nameStartsWithSlash": "Name cannot start with '/'",

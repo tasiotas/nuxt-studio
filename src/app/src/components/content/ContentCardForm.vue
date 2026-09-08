@@ -1,9 +1,14 @@
 <script setup lang="ts">
-import type { TreeItem, StudioItemActionId } from '../../types'
+import type { TreeItem } from '../../types'
 import type { PropType } from 'vue'
 import { computed } from 'vue'
 import { getFileIcon, CONTENT_EXTENSIONS } from '../../utils/file'
-import { ContentFileExtension } from '../../types'
+import { ContentFileExtension, StudioItemActionId } from '../../types'
+
+import { useStudio } from '../../composables/useStudio'
+import { getContentExtensionConfig } from '../../utils/contentCreation'
+
+const { host } = useStudio()
 
 const props = defineProps({
   actionId: {
@@ -34,6 +39,9 @@ const fileIcon = computed(() => {
     :action-id="actionId"
     :parent-item="parentItem"
     :renamed-item="renamedItem"
+    :get-extension-config="actionId === StudioItemActionId.CreateDocument
+      ? (name: string, prefix: string | null | undefined) => getContentExtensionConfig(host.collection, parentItem.fsPath, name, prefix)
+      : undefined"
     :config="{
       allowed: CONTENT_EXTENSIONS,
       default: ContentFileExtension.Markdown,

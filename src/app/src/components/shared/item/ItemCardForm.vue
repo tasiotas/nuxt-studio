@@ -16,8 +16,9 @@ import { parseName, getFileExtension, CONTENT_EXTENSIONS, MEDIA_EXTENSIONS } fro
 import { slugifyString } from '../../../utils/string'
 import { upperFirst } from 'scule'
 import { useI18n } from 'vue-i18n'
+import { getCandidateFilePath } from '../../../utils/contentCreation'
 
-const { context } = useStudio()
+const { context, host } = useStudio()
 const { t } = useI18n()
 
 const isLoading = ref(false)
@@ -37,6 +38,10 @@ const props = defineProps({
   renamedItem: {
     type: Object as PropType<TreeItem>,
     default: null,
+  },
+  getExtensionConfig: {
+    type: Function as PropType<(name: string, prefix: string | null | undefined) => ExtensionConfig>,
+    default: undefined,
   },
   config: {
     type: Object as PropType<ExtensionConfig>,
@@ -111,6 +116,33 @@ const state = reactive<SchemaType>({
   name: originalName.value,
   extension: originalExtension.value,
   prefix: originalPrefix.value,
+})
+
+const extensionConfig = computed(() => props.getExtensionConfig?.(state.name, state.prefix) || props.config)
+const isCreatingDocument = computed(() => props.actionId === StudioItemActionId.CreateDocument && !props.renamedItem)
+
+watch([extensionConfig, () => props.parentItem.fsPath], () => {
+  if (!isCreatingDocument.value || !props.getExtensionConfig) return
+  const config = extensionConfig.value
+  if (!state.extension || !config.allowed.includes(state.extension)) {
+    state.extension = config.default
+  }
+}, { immediate: true, flush: 'sync' })
+
+const candidateFsPath = computed(() => getCandidateFilePath(props.parentItem.fsPath, state.name, state.prefix, state.extension))
+const submissionCollectionError = ref('')
+function getCollectionError() {
+  if (!isCreatingDocument.value) return ''
+  if (!state.extension || !extensionConfig.value.allowed.includes(state.extension)) {
+    return t('studio.validation.noCollectionForFileName')
+  }
+  return host.collection.getByFsPath(candidateFsPath.value)
+    ? ''
+    : t('studio.validation.noCollectionForPath', { path: candidateFsPath.value })
+}
+const collectionError = computed(() => submissionCollectionError.value || getCollectionError())
+watch([candidateFsPath, extensionConfig], () => {
+  submissionCollectionError.value = ''
 })
 
 const validationErrors = computed(() => {
@@ -211,10 +243,16 @@ onUnmounted(() => {
 async function onSubmit() {
   if (isLoading.value) return
 
+  // Always check the final path against the latest host metadata.
+  submissionCollectionError.value = getCollectionError()
+  if (validationErrors.value.length > 0 || collectionError.value) return
+
   isLoading.value = true
 
   let params: CreateFileParams | RenameFileParams | CreateFolderParams
-  const newFsPath = withoutLeadingSlash(joinURL(props.parentItem.fsPath, fullName.value)).toLowerCase()
+  const newFsPath = isCreatingDocument.value
+    ? candidateFsPath.value
+    : withoutLeadingSlash(joinURL(props.parentItem.fsPath, fullName.value)).toLowerCase()
 
   if (newFsPath === props.renamedItem?.fsPath) {
     isLoading.value = false
@@ -326,8 +364,8 @@ async function onSubmit() {
                   >
                     <USelect
                       v-model="state.extension as string"
-                      :items="config.allowed"
-                      :disabled="!config.editable || isLoading"
+                      :items="extensionConfig.allowed"
+                      :disabled="!extensionConfig.editable || isLoading"
                       variant="soft"
                       class="w-18 h-5"
                       size="xs"
@@ -335,6 +373,13 @@ async function onSubmit() {
                   </UFormField>
                 </div>
 
+                <p
+                  v-if="collectionError"
+                  role="alert"
+                  class="text-xs text-error"
+                >
+                  {{ collectionError }}
+                </p>
                 <UTooltip :text="displayInfo">
                   <span class="truncate leading-relaxed text-xs text-dimmed block w-full">
                     {{ displayInfo }}
@@ -362,9 +407,9 @@ async function onSubmit() {
                   <UButton
                     type="submit"
                     variant="soft"
-                    :color="validationErrors.length > 0 ? 'error' : 'secondary'"
+                    :color="validationErrors.length > 0 || collectionError ? 'error' : 'secondary'"
                     :aria-label="$t('studio.aria.submit')"
-                    :disabled="validationErrors.length > 0 || isLoading"
+                    :disabled="validationErrors.length > 0 || !!collectionError || isLoading"
                     :loading="isLoading"
                     size="xs"
                     square
