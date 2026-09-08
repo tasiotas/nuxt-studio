@@ -1,5 +1,6 @@
 # Dependencies
 node_modules
+.pnpm-store/
 
 # Logs
 *.log*
@@ -15,6 +16,7 @@ node_modules
 
 # Generated dirs
 dist
+artifacts/
 
 # Nuxt
 .nuxt

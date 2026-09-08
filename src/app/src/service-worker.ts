@@ -30,6 +30,7 @@ const MEDIA_EXTENSIONS = [
   'm4a',
   'm4v',
   'm4b',
+  'pdf',
 ]
 
 function extractImagePath(url) {
@@ -49,7 +50,7 @@ function extractImagePath(url) {
     return url.searchParams.get('url') || null
   }
 
-  if (MEDIA_EXTENSIONS.includes(pathname.split('.').pop())) {
+  if (MEDIA_EXTENSIONS.includes(pathname.split('.').pop().toLowerCase())) {
     return pathname
   }
 

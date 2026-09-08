@@ -80,7 +80,7 @@ interface MediaUploadOptions {
 
   /**
    * The allowed types for media uploads.
-   * @default ['image/*', 'video/*', 'audio/*']
+   * @default ['image/*', 'video/*', 'audio/*', 'application/pdf']
    */
   allowedTypes?: string[]
 
@@ -452,7 +452,7 @@ export default defineNuxtModule<ModuleOptions>({
       external: false,
       publicUrl: undefined,
       maxFileSize: 10 * 1024 * 1024,
-      allowedTypes: ['image/*', 'video/*', 'audio/*'],
+      allowedTypes: ['image/*', 'video/*', 'audio/*', 'application/pdf'],
       prefix: 'studio',
     },
   },

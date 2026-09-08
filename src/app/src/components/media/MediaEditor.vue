@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, type PropType } from 'vue'
 import type { MediaItem, DraftStatus, GitFile } from '../../types'
-import { isImageFile, isVideoFile, isAudioFile } from '../../utils/file'
+import { isImageFile, isVideoFile, isAudioFile, isPdfFile } from '../../utils/file'
 
 const props = defineProps({
   mediaItem: {
@@ -21,6 +21,7 @@ const props = defineProps({
 const isImage = computed(() => isImageFile(props.mediaItem?.path || ''))
 const isVideo = computed(() => isVideoFile(props.mediaItem?.path || ''))
 const isAudio = computed(() => isAudioFile(props.mediaItem?.path || ''))
+const isPdf = computed(() => isPdfFile(props.mediaItem?.path || ''))
 </script>
 
 <template>
@@ -38,6 +39,10 @@ const isAudio = computed(() => isAudioFile(props.mediaItem?.path || ''))
     <MediaEditorAudio
       v-else-if="isAudio"
       :src="mediaItem.path!"
+    />
+    <MediaEditorPdf
+      v-else-if="isPdf"
+      :media-item="mediaItem"
     />
     <div v-else>
       <UIcon

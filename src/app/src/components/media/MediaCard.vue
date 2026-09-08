@@ -3,7 +3,7 @@ import type { TreeItem } from '../../types'
 import type { PropType } from 'vue'
 import { computed } from 'vue'
 import { Image } from '@unpic/vue'
-import { isImageFile } from '../../utils/file'
+import { isImageFile, getFileIcon } from '../../utils/file'
 import { getMediaThumbnailUrl } from '../../utils/media'
 import { useStudio } from '../../composables/useStudio'
 import { StudioItemActionId } from '../../types'
@@ -58,7 +58,7 @@ const imageSrc = computed(() => {
         class="flex items-center justify-center h-full"
       >
         <UIcon
-          name="i-lucide-play"
+          :name="getFileIcon(item.fsPath)"
           class="w-6 h-6 text-muted"
         />
       </div>

@@ -1,3 +1,4 @@
+import type { Plugin } from 'nuxt/app'
 import { defineNuxtPlugin, useRuntimeConfig } from '#imports'
 import { consola } from 'consola'
 import { defineStudioActivationPlugin } from '../utils/activation'
@@ -5,7 +6,7 @@ import type { Repository, UseStudioHost } from 'nuxt-studio/app'
 
 const logger = consola.withTag('Nuxt Studio')
 
-export default defineNuxtPlugin(() => {
+const studioPlugin: Plugin = defineNuxtPlugin(() => {
   defineStudioActivationPlugin(async (user) => {
     const config = useRuntimeConfig()
     logger.info(`
@@ -31,3 +32,5 @@ export default defineNuxtPlugin(() => {
     document.body.appendChild(wp)
   })
 })
+
+export default studioPlugin

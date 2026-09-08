@@ -1,8 +1,9 @@
+import type { Plugin } from 'nuxt/app'
 import { defineNuxtPlugin, useRuntimeConfig } from '#imports'
 import type { Repository, UseStudioHost } from 'nuxt-studio/app'
 import { defineStudioActivationPlugin } from '../utils/activation'
 
-export default defineNuxtPlugin(() => {
+const studioPlugin: Plugin = defineNuxtPlugin(() => {
   // Don't await this to avoid blocking the main thread
   defineStudioActivationPlugin(async (user) => {
     const config = useRuntimeConfig()
@@ -15,3 +16,5 @@ export default defineNuxtPlugin(() => {
     document.body.appendChild(document.createElement('nuxt-studio'))
   })
 })
+
+export default studioPlugin

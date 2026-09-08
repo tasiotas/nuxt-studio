@@ -1,11 +1,11 @@
 {
   "name": "nuxt-studio",
-  "version": "1.7.0",
+  "version": "1.7.0-pdf.1",
   "description": "Nuxt Studio for Nuxt Content",
   "private": false,
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/nuxt-content/nuxt-studio.git"
+    "url": "git+https://github.com/tasiotas/nuxt-studio.git"
   },
   "license": "MIT",
   "type": "module",
@@ -30,7 +30,7 @@
   ],
   "main": "./dist/module/module.mjs",
   "scripts": {
-    "prepack": "nuxt-module-build build src/module; vite build src/app",
+    "prepack": "nuxt-module-build build src/module && vite build src/app",
     "dev": "pnpm run dev:prepare && STUDIO_DEV_SERVER=http://localhost:5151 nuxi dev playground/docus",
     "dev:minimal": "pnpm run dev:prepare && STUDIO_DEV_SERVER=http://localhost:5151 nuxt dev playground/minimal",
     "dev:app": "vite src/app --port 5151",

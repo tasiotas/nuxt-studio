@@ -1,4 +1,4 @@
-import { ImageFileExtension, VideoFileExtension, AudioFileExtension, ContentFileExtension } from '../types'
+import { ImageFileExtension, VideoFileExtension, AudioFileExtension, ContentFileExtension, DocumentFileExtension, type MediaFileExtension } from '../types'
 import { slugifyString } from './string'
 
 export const IMAGE_EXTENSIONS = [
@@ -29,10 +29,13 @@ export const AUDIO_EXTENSIONS = [
   AudioFileExtension.FLAC,
 ]
 
+export const DOCUMENT_EXTENSIONS = [DocumentFileExtension.PDF]
+
 export const MEDIA_EXTENSIONS = [
   ...IMAGE_EXTENSIONS,
   ...VIDEO_EXTENSIONS,
   ...AUDIO_EXTENSIONS,
+  ...DOCUMENT_EXTENSIONS,
 ]
 
 export const CONTENT_EXTENSIONS = [
@@ -43,6 +46,7 @@ export const CONTENT_EXTENSIONS = [
 ]
 
 export const FILE_ICONS = {
+  pdf: 'i-lucide-file-text',
   md: 'i-lucide-file-text',
   yaml: 'i-lucide-file-code',
   yml: 'i-lucide-file-code',
@@ -71,7 +75,11 @@ export function getFileIcon(fsPath: string) {
 }
 
 export function isMediaFile(fsPath: string) {
-  return MEDIA_EXTENSIONS.includes(getFileExtension(fsPath) as ImageFileExtension | VideoFileExtension | AudioFileExtension)
+  return MEDIA_EXTENSIONS.includes(getFileExtension(fsPath) as MediaFileExtension)
+}
+
+export function isPdfFile(fsPath: string) {
+  return getFileExtension(fsPath) === DocumentFileExtension.PDF
 }
 
 export function isVideoFile(fsPath: string) {

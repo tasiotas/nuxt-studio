@@ -5,7 +5,11 @@ export enum ContentFileExtension {
   JSON = 'json',
 }
 
-export type MediaFileExtension = ImageFileExtension | AudioFileExtension | VideoFileExtension
+export type MediaFileExtension = ImageFileExtension | AudioFileExtension | VideoFileExtension | DocumentFileExtension
+
+export enum DocumentFileExtension {
+  PDF = 'pdf',
+}
 
 export enum ImageFileExtension {
   PNG = 'png',
