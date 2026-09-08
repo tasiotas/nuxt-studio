@@ -387,6 +387,11 @@
       },
       "media": {
         "placeholder": "Enter relative path or Public URL...",
+        "filePlaceholder": "Enter file URL...",
+        "fileSearchPlaceholder": "Search files...",
+        "noFilesFound": "No files found",
+        "noFilesAvailable": "No files available",
+        "fileCount": "{count} of {total} file | {count} of {total} files",
         "searchPlaceholder": "Search images...",
         "noImagesFound": "No images found",
         "noImagesAvailable": "No images available",

@@ -10,6 +10,10 @@
   "license": "MIT",
   "type": "module",
   "exports": {
+    "./schema": {
+      "types": "./dist/module/schema.d.mts",
+      "default": "./dist/module/schema.mjs"
+    },
     ".": "./dist/module/module.mjs",
     "./app": {
       "types": "./dist/app/main.d.ts",
@@ -40,7 +44,7 @@
     "build:dev": "nuxi build playground/docus",
     "release": "release-it",
     "lint": "eslint .",
-    "typecheck": "nuxt typecheck && vue-tsc -p src/app/tsconfig.app.json",
+    "typecheck": "nuxt typecheck && vue-tsc -p src/app/tsconfig.app.json && tsc -p src/module/test/types/tsconfig.json",
     "verify": "pnpm run dev:prepare && pnpm run lint && pnpm run prepack && pnpm run typecheck && pnpm run test",
     "test": "vitest run",
     "test:watch": "vitest watch",

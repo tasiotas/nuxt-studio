@@ -9,6 +9,7 @@ export default defineBuildConfig({
     },
   },
   externals: [
+    '@nuxt/content',
     './runtime/utils/media.js',
     'ufo',
     'defu',
@@ -26,6 +27,7 @@ export default defineBuildConfig({
   ],
   entries: [
     './src/module',
+    './src/schema',
     {
       input: './src/runtime/',
       outDir: `../../dist/module/runtime`,

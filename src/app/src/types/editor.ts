@@ -1,5 +1,6 @@
 import type { ComponentData } from 'nuxt-component-meta'
 import type { JSType } from 'untyped'
+import type { MediaAccept } from '../../../module/src/schema'
 
 export interface ComponentMeta {
   name: string
@@ -33,6 +34,7 @@ export type FormItem = {
   label?: string
   description?: string
   tooltip?: string
+  accept?: MediaAccept[]
 }
 
 export const COMMAND_KEYS = [

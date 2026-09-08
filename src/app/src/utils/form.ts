@@ -2,6 +2,7 @@ import type { Draft07, Draft07DefinitionProperty, Draft07DefinitionPropertyAnyOf
 import type { FormTree, FormItem } from '../types'
 import { upperFirst, titleCase } from 'scule'
 import { omit } from './object'
+import type { MediaEditorOptions } from '../../../module/src/schema'
 
 export function formItemInputLabel(formItem: FormItem): string {
   const custom = formItem.label?.trim()
@@ -17,13 +18,17 @@ export function formItemInputLabel(formItem: FormItem): string {
  */
 function editorDisplayFromContent(
   content: Draft07DefinitionProperty['$content'],
-): Partial<Pick<FormItem, 'label' | 'description' | 'tooltip'>> {
-  const editor = content?.editor as EditorOptions | undefined
+): Partial<Pick<FormItem, 'label' | 'description' | 'tooltip' | 'accept'>> {
+  const editor = content?.editor as (EditorOptions & MediaEditorOptions) | undefined
   if (!editor) {
     return {}
   }
 
-  const result: Partial<Pick<FormItem, 'label' | 'description' | 'tooltip'>> = {}
+  const result: Partial<Pick<FormItem, 'label' | 'description' | 'tooltip' | 'accept'>> = {}
+
+  if (editor.input === 'media' && Array.isArray(editor.accept)) {
+    result.accept = editor.accept.filter(type => type === 'image/*' || type === 'application/pdf')
+  }
 
   if (editor.label !== undefined) {
     result.label = editor.label
