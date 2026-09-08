@@ -4,6 +4,7 @@ import { createApp, defineComponent, h, nextTick, ref, type ComponentPublicInsta
 import { z } from 'zod'
 import type { FormItem, TreeItem } from '../../src/types'
 import InputMedia from '../../src/components/form/input/InputMedia.vue'
+import { getMediaThumbnailUrl } from '../../src/utils/media'
 
 const mocks = vi.hoisted(() => ({
   root: [] as TreeItem[],
@@ -75,7 +76,32 @@ describe('schema media picker', () => {
   it('defaults to images only', () => {
     const { state } = mountPicker()
     expect(state.mediaFiles.map(file => file.name)).toEqual(['photo.png'])
-    expect(mocks.image).toHaveBeenCalledWith('documents/photo.png')
+    expect(mocks.image).toHaveBeenCalledWith(getMediaThumbnailUrl('documents/photo.png'))
+  })
+
+  it.each([
+    '/printables/Download-on-the-App-Store-Badge.svg',
+    'https://cdn.example.com/site-assets/photo.png',
+  ])('uses Media tab thumbnail resolution for grid and selected preview: %s', async (url) => {
+    const { state, container, model } = mountPicker(undefined, false, url)
+    state.mediaFiles[0].routePath = url
+    await nextTick()
+    expect(Array.from(container.querySelectorAll('img'), image => image.getAttribute('src')))
+      .toEqual([getMediaThumbnailUrl(url), getMediaThumbnailUrl(url)])
+    await state.selectMedia(state.mediaFiles[0])
+    expect(model.value).toBe(url)
+    expect(model.value).not.toContain('/__nuxt_studio/ipx/')
+  })
+
+  it('resolves the actual external image URL for saving and uses IPX only for its preview', async () => {
+    const url = 'https://cdn.example.com/storage-prefix/documents/photo.png'
+    mocks.get.mockResolvedValue({ path: url })
+    const { state, model, container } = mountPicker(undefined, true)
+    await state.selectMedia(state.mediaFiles[0])
+    await nextTick()
+    expect(model.value).toBe(url)
+    expect(container.querySelector('img')?.getAttribute('src')).toBe(getMediaThumbnailUrl(url))
+    expect(mocks.get).toHaveBeenCalledWith('documents/photo.png')
   })
 
   it('renders lowercase and uppercase PDFs with filenames and no image processing', () => {

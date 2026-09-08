@@ -6,6 +6,7 @@ import { useStudio } from '../../../composables/useStudio'
 import { isImageFile, getFileIcon } from '../../../utils/file'
 import { Image } from '@unpic/vue'
 import { acceptsMedia, isPdfUrl, resolveMediaSelectionUrl } from '../../../utils/mediaPicker'
+import { getMediaThumbnailUrl } from '../../../utils/media'
 
 const props = defineProps({
   formItem: {
@@ -85,7 +86,7 @@ async function selectMedia(media: TreeItem) {
     >
       <Image
         v-if="modelIsImage"
-        :src="model"
+        :src="getMediaThumbnailUrl(model)"
         width="24"
         height="24"
         :alt="model"
@@ -166,7 +167,7 @@ async function selectMedia(media: TreeItem) {
                   >
                     <Image
                       v-if="isImageFile(media.fsPath)"
-                      :src="media.routePath || media.fsPath"
+                      :src="getMediaThumbnailUrl(media.routePath || media.fsPath)"
                       width="80"
                       height="80"
                       :alt="media.name"
