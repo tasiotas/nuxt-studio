@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { applyCollectionSchema, areDocumentsEqual, isDocumentMatchingContent, sanitizeDocumentTree } from '../../src/runtime/utils/document'
+import { applyCollectionSchema, areDocumentsEqual, documentFromYAMLContent, isDocumentMatchingContent, sanitizeDocumentTree } from '../../src/runtime/utils/document'
 import { ContentFileExtension } from '../../src/types/content'
 import type { DatabaseItem } from 'nuxt-studio/app'
 import type { CollectionInfo } from '@nuxt/content'
@@ -691,5 +691,82 @@ describe('applyCollectionSchema', () => {
     expect(sharedSeo).toEqual({ description: 'Welcome to Docus theme documentation.' })
     expect('title' in sharedSeo).toBe(false)
     expect((document.body as { frontmatter: { seo: object } }).frontmatter.seo).toEqual(sharedSeo)
+  })
+
+  const dataCollection = {
+    type: 'data',
+    name: 'settings',
+    schema: {
+      definitions: {
+        settings: {
+          properties: {
+            id: { type: 'string' },
+            title: { type: 'string' },
+            stem: { type: 'string' },
+            extension: { type: 'string' },
+            meta: { type: 'object' },
+            enabled: { type: 'boolean', default: true },
+            publishedAt: { type: 'string', format: 'date-time', default: '2026-09-11T00:00:00.000Z' },
+            options: { type: 'object', default: { featured: true, nested: { count: 1 } } },
+            tags: { type: 'array', default: ['nuxt'] },
+          },
+        },
+      },
+    },
+  } as unknown as CollectionInfo
+
+  it('applies collection defaults to an empty YAML data document', async () => {
+    const document = await documentFromYAMLContent('settings:site-config.yml', '')
+
+    const result = applyCollectionSchema(document.id, dataCollection, document)
+
+    expect(result).toMatchObject({
+      enabled: true,
+      publishedAt: '2026-09-11T00:00:00.000Z',
+      options: { featured: true, nested: { count: 1 } },
+      tags: ['nuxt'],
+    })
+  })
+
+  it('derives a missing schema title from the filename', async () => {
+    const document = await documentFromYAMLContent('settings:01.site-config.yml', '')
+
+    const result = applyCollectionSchema(document.id, dataCollection, document)
+
+    expect(result.title).toBe('Site Config')
+  })
+
+  it('preserves explicit values instead of applying defaults', async () => {
+    const document = await documentFromYAMLContent('settings:site-config.yml', [
+      'enabled: false',
+      'publishedAt: null',
+      'options: {}',
+      'tags: []',
+      'title: ""',
+    ].join('\n'))
+
+    const result = applyCollectionSchema(document.id, dataCollection, document)
+
+    expect(result).toMatchObject({
+      enabled: false,
+      publishedAt: null,
+      options: {},
+      tags: [],
+      title: '',
+    })
+  })
+
+  it('clones mutable schema defaults for each document', async () => {
+    const first = applyCollectionSchema('settings:first.yml', dataCollection, await documentFromYAMLContent('settings:first.yml', ''))
+    const second = applyCollectionSchema('settings:second.yml', dataCollection, await documentFromYAMLContent('settings:second.yml', ''))
+
+    expect(first.options).not.toBe(second.options)
+    expect(first.tags).not.toBe(second.tags)
+
+    ;(first.options as { nested: { count: number } }).nested.count = 2
+    ;(first.tags as string[]).push('studio')
+
+    expect(second.options).toEqual({ featured: true, nested: { count: 1 } })
+    expect(second.tags).toEqual(['nuxt'])
   })
 })

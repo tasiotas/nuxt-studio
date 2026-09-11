@@ -2,12 +2,25 @@ import type { CollectionInfo, CollectionItemBase } from '@nuxt/content'
 import type { DatabaseItem, DatabasePageItem } from 'nuxt-studio/app'
 import { getOrderedSchemaKeys } from '../collection'
 import { omit, pick } from '../object'
-import { addPageTypeFields } from './utils'
+import { cleanUrlSegment } from '../url'
+import { addPageTypeFields, generateTitleFromPath, parseDocumentId } from './utils'
 
 export const reservedKeys = ['id', 'fsPath', 'stem', 'extension', '__hash__', 'path', 'body', 'meta', 'rawbody']
 
+function cloneSchemaDefault(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map(cloneSchemaDefault)
+  }
+
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, cloneSchemaDefault(item)]))
+  }
+
+  return value
+}
+
 export function applyCollectionSchema(id: string, collectionInfo: CollectionInfo, document: CollectionItemBase) {
-  let parsedContent = { ...document, id }
+  let parsedContent = { ...document, id } as DatabaseItem
   if (collectionInfo.type === 'page') {
     parsedContent = addPageTypeFields(parsedContent)
   }
@@ -16,6 +29,20 @@ export function applyCollectionSchema(id: string, collectionInfo: CollectionInfo
   const meta = parsedContent.meta
 
   const collectionKeys = getOrderedSchemaKeys(collectionInfo.schema)
+  const properties = Object.values(collectionInfo.schema.definitions)[0]?.properties || {}
+
+  if (collectionKeys.includes('title') && parsedContent.title === undefined) {
+    const { basename } = parseDocumentId(id)
+    parsedContent.title = generateTitleFromPath(cleanUrlSegment(basename))
+  }
+
+  for (const key of collectionKeys) {
+    const property = properties[key]
+    if (parsedContent[key] === undefined && property && 'default' in property && property.default !== undefined) {
+      parsedContent[key] = cloneSchemaDefault(property.default)
+    }
+  }
+
   for (const key of Object.keys(parsedContent)) {
     if (collectionKeys.includes(key)) {
       result[key] = parsedContent[key as keyof typeof parsedContent]

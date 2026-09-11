@@ -11,7 +11,7 @@ export function addPageTypeFields(dbItem: DatabaseItem) {
   return {
     path: filePath,
     ...dbItem,
-    title: dbItem.title || generateTitleFromPath(cleanUrlSegment(basename)),
+    title: dbItem.title === undefined ? generateTitleFromPath(cleanUrlSegment(basename)) : dbItem.title,
     stem,
     extension,
   }
