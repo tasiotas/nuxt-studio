@@ -4,6 +4,9 @@ import { createApp, defineComponent, h, nextTick, ref, type ComponentPublicInsta
 import { z } from 'zod'
 import type { FormItem, TreeItem } from '../../src/types'
 import InputMedia from '../../src/components/form/input/InputMedia.vue'
+import InputText from '../../src/components/form/input/InputText.vue'
+import TiptapExtensionImagePicker from '../../src/components/tiptap/extension/TiptapExtensionImagePicker.vue'
+import TiptapExtensionVideoPicker from '../../src/components/tiptap/extension/TiptapExtensionVideoPicker.vue'
 import { getMediaThumbnailUrl } from '../../src/utils/media'
 
 const mocks = vi.hoisted(() => ({
@@ -18,6 +21,14 @@ vi.mock('../../src/composables/useStudio', async () => {
     mediaTree: { root: ref(mocks.root) },
     host: { meta: { media: { external: mocks.external } }, media: { get: mocks.get } },
   }) }
+})
+vi.mock('@tiptap/vue-3', async () => {
+  const { defineComponent, h } = await import('vue')
+  return {
+    NodeViewWrapper: defineComponent({
+      setup: (_, { slots }) => () => h('div', slots.default?.()),
+    }),
+  }
 })
 vi.mock('@unpic/vue', async () => {
   const { defineComponent, h } = await import('vue')
@@ -36,6 +47,17 @@ type PickerState = {
   popoverOpen: boolean
   selectionError: string
   selectMedia: (media: TreeItem) => Promise<void>
+}
+type TextPickerState = {
+  isMediaPickerOpen: boolean
+  mediaSelectionError: string
+  handleMediaSelect: (media: TreeItem | null) => Promise<void>
+}
+type NodePickerState = {
+  isOpen: boolean
+  selectionError: string
+  handleImageSelect?: (media: TreeItem | null) => Promise<void>
+  handleVideoSelect?: (media: TreeItem | null) => Promise<void>
 }
 const cleanup: (() => void)[] = []
 afterEach(() => {
@@ -70,6 +92,50 @@ function mountPicker(accept?: FormItem['accept'], external = false, initialValue
   app.mount(container)
   cleanup.push(() => app.unmount())
   return { container, model, state: (picker.value!.$ as unknown as { setupState: PickerState }).setupState }
+}
+
+function mountTextPicker(external = false, initialValue = '') {
+  mocks.external = external
+  const model = ref<string | number>(initialValue)
+  const picker = ref<ComponentPublicInstance>()
+  const formItem = { id: 'BlogFigure/src', key: 'src', title: 'Source', type: 'string' } as FormItem
+  const app = createApp(defineComponent({ setup: () => () => h(InputText, {
+    'ref': picker, formItem, 'modelValue': model.value, 'onUpdate:modelValue': (value: string | number) => { model.value = value },
+  }) }))
+  app.config.globalProperties.$t = (key: string) => key
+  const stub = defineComponent({ setup: (_, { slots }) => () => h('div', slots.default?.()) })
+  for (const name of ['UInput', 'UTooltip', 'UButton', 'ModalMediaPicker']) app.component(name, stub)
+  const container = document.createElement('div')
+  app.mount(container)
+  cleanup.push(() => app.unmount())
+  return { model, state: (picker.value!.$ as unknown as { setupState: TextPickerState }).setupState }
+}
+
+function mountNodePicker(component: typeof TiptapExtensionImagePicker | typeof TiptapExtensionVideoPicker) {
+  const picker = ref<ComponentPublicInstance>()
+  const chain = {
+    focus: vi.fn(),
+    deleteRange: vi.fn(),
+    insertContentAt: vi.fn(),
+    run: vi.fn(),
+  }
+  chain.focus.mockReturnValue(chain)
+  chain.deleteRange.mockReturnValue(chain)
+  chain.insertContentAt.mockReturnValue(chain)
+  const editor = { chain: vi.fn(() => chain) }
+  const app = createApp(defineComponent({ setup: () => () => h(component, {
+    ref: picker,
+    editor,
+    getPos: () => 4,
+  }) }))
+  app.component('ModalMediaPicker', defineComponent({ setup: () => () => h('div') }))
+  const container = document.createElement('div')
+  app.mount(container)
+  cleanup.push(() => app.unmount())
+  return {
+    chain,
+    state: (picker.value!.$ as unknown as { setupState: NodePickerState }).setupState,
+  }
 }
 
 describe('schema media picker', () => {
@@ -166,5 +232,113 @@ describe('schema media picker', () => {
     input.dispatchEvent(new Event('input'))
     await nextTick()
     expect(model.value).toBe(input.value)
+  })
+})
+
+describe('generic component media picker', () => {
+  it('saves the public URL returned by external media storage', async () => {
+    const media = file('photo.png', 'photo.png')
+    const url = 'https://cdn.example.com/storage-prefix/documents/photo.png'
+    mocks.get.mockResolvedValue({ path: url })
+    const { model, state } = mountTextPicker(true)
+
+    await state.handleMediaSelect(media)
+
+    expect(mocks.get).toHaveBeenCalledWith(media.fsPath)
+    expect(model.value).toBe(url)
+    expect(state.isMediaPickerOpen).toBe(false)
+  })
+
+  it.each([
+    [file('routed.png', '/images/routed.png'), '/images/routed.png'],
+    [file('fallback.png'), 'documents/fallback.png'],
+  ])('preserves local media selection behavior', async (media, expected) => {
+    const { model, state } = mountTextPicker(false)
+
+    await state.handleMediaSelect(media)
+
+    expect(model.value).toBe(expected)
+    expect(mocks.get).not.toHaveBeenCalled()
+  })
+
+  it('preserves an absolute external route without fetching media metadata', async () => {
+    const url = 'https://cdn.example.com/storage-prefix/photo.png'
+    const { model, state } = mountTextPicker(true)
+
+    await state.handleMediaSelect(file('photo.png', url))
+
+    expect(model.value).toBe(url)
+    expect(mocks.get).not.toHaveBeenCalled()
+  })
+
+  it('keeps the current value and picker open when external resolution fails', async () => {
+    mocks.get.mockResolvedValue({ path: '/relative/photo.png' })
+    const { model, state } = mountTextPicker(true, 'https://cdn.example.com/original.png')
+    state.isMediaPickerOpen = true
+
+    await state.handleMediaSelect(file('photo.png', 'photo.png'))
+
+    expect(model.value).toBe('https://cdn.example.com/original.png')
+    expect(state.isMediaPickerOpen).toBe(true)
+    expect(state.mediaSelectionError).toContain('no public URL')
+  })
+
+  it('keeps the manual URL option behavior when no media is selected', async () => {
+    const { model, state } = mountTextPicker(true, 'https://other.example.com/photo.png')
+    state.isMediaPickerOpen = true
+
+    await state.handleMediaSelect(null)
+
+    expect(model.value).toBe('')
+    expect(state.isMediaPickerOpen).toBe(false)
+    expect(mocks.get).not.toHaveBeenCalled()
+  })
+})
+
+describe('rich-text media pickers', () => {
+  it('inserts the resolved public image URL', async () => {
+    const media = file('photo.png', 'photo.png')
+    const url = 'https://cdn.example.com/storage-prefix/documents/photo.png'
+    mocks.external = true
+    mocks.get.mockResolvedValue({ path: url })
+    const { chain, state } = mountNodePicker(TiptapExtensionImagePicker)
+
+    await state.handleImageSelect!(media)
+
+    expect(chain.insertContentAt).toHaveBeenCalledWith(4, {
+      type: 'image',
+      attrs: { props: { src: url, alt: 'photo.png' } },
+    })
+    expect(state.isOpen).toBe(false)
+  })
+
+  it('inserts the resolved public video URL', async () => {
+    const media = file('clip.mp4', 'clip.mp4')
+    const url = 'https://cdn.example.com/storage-prefix/documents/clip.mp4'
+    mocks.external = true
+    mocks.get.mockResolvedValue({ path: url })
+    const { chain, state } = mountNodePicker(TiptapExtensionVideoPicker)
+
+    await state.handleVideoSelect!(media)
+
+    expect(chain.insertContentAt).toHaveBeenCalledWith(4, {
+      type: 'video',
+      attrs: { props: { src: url } },
+    })
+    expect(state.isOpen).toBe(false)
+  })
+
+  it('does not replace the picker node when external resolution fails', async () => {
+    mocks.external = true
+    mocks.get.mockResolvedValue({ path: '/relative/photo.png' })
+    const { chain, state } = mountNodePicker(TiptapExtensionImagePicker)
+
+    await state.handleImageSelect!(file('photo.png', 'photo.png'))
+
+    expect(chain.deleteRange).not.toHaveBeenCalled()
+    expect(chain.insertContentAt).not.toHaveBeenCalled()
+    expect(chain.run).not.toHaveBeenCalled()
+    expect(state.isOpen).toBe(true)
+    expect(state.selectionError).toContain('no public URL')
   })
 })

@@ -2,6 +2,8 @@
 import type { FormItem, TreeItem } from '../../../types'
 import type { PropType } from 'vue'
 import { computed, ref } from 'vue'
+import { useStudio } from '../../../composables/useStudio'
+import { resolveMediaSelectionUrl } from '../../../utils/mediaPicker'
 
 const props = defineProps({
   formItem: {
@@ -12,7 +14,9 @@ const props = defineProps({
 
 const model = defineModel<string | number>({ default: '' })
 
+const { host } = useStudio()
 const isMediaPickerOpen = ref(false)
+const mediaSelectionError = ref('')
 
 const hasOptions = computed(() => props.formItem?.options && props.formItem.options.length > 0)
 
@@ -68,13 +72,20 @@ const isIconProp = computed(() => {
   )
 })
 
-function handleMediaSelect(media: TreeItem | null) {
+async function handleMediaSelect(media: TreeItem | null) {
   // If null, leave field empty for manual entry
-  model.value = media?.routePath || media?.fsPath || ''
-  isMediaPickerOpen.value = false
+  mediaSelectionError.value = ''
+  try {
+    model.value = media ? await resolveMediaSelectionUrl(media, host) : ''
+    isMediaPickerOpen.value = false
+  }
+  catch (error) {
+    mediaSelectionError.value = (error as Error).message
+  }
 }
 
 function handleMediaCancel() {
+  mediaSelectionError.value = ''
   isMediaPickerOpen.value = false
 }
 </script>
@@ -127,6 +138,7 @@ function handleMediaCancel() {
       v-if="isMediaProp"
       :open="isMediaPickerOpen"
       :type="mediaType"
+      :error="mediaSelectionError"
       @select="handleMediaSelect"
       @cancel="handleMediaCancel"
     />

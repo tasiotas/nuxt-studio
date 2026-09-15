@@ -14,7 +14,7 @@ const ITEMS_PER_PAGE = 12
 const { mediaTree, context } = useStudio()
 const { t } = useI18n()
 
-const props = defineProps<{ open: boolean, type: 'image' | 'video' }>()
+const props = defineProps<{ open: boolean, type: 'image' | 'video', error?: string }>()
 
 const emit = defineEmits<{
   select: [image: TreeItem | null]
@@ -172,6 +172,14 @@ function isValidFileType(item: TreeItem) {
   >
     <template #body>
       <div class="flex h-96 min-h-0 flex-col gap-4">
+        <p
+          v-if="error"
+          role="alert"
+          class="text-xs text-error"
+        >
+          {{ error }}
+        </p>
+
         <UInput
           ref="searchInput"
           v-model="search"
