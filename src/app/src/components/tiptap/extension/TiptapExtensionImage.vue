@@ -37,36 +37,6 @@ const imageMeta = {
         declarations: [],
         schema: { kind: 'enum', type: 'string', schema: [] },
       },
-      {
-        name: 'title',
-        global: false,
-        description: t('studio.tiptap.image.title'),
-        tags: [],
-        required: false,
-        type: 'string',
-        declarations: [],
-        schema: { kind: 'enum', type: 'string', schema: [] },
-      },
-      {
-        name: 'width',
-        global: false,
-        description: t('studio.tiptap.image.width'),
-        tags: [],
-        required: false,
-        type: 'string',
-        declarations: [],
-        schema: { kind: 'enum', type: 'string', schema: [] },
-      },
-      {
-        name: 'height',
-        global: false,
-        description: t('studio.tiptap.image.height'),
-        tags: [],
-        required: false,
-        type: 'string',
-        declarations: [],
-        schema: { kind: 'enum', type: 'string', schema: [] },
-      },
     ],
     slots: [],
     events: [],
@@ -80,10 +50,6 @@ const imageAttrs = computed(() => {
   return {
     src: sanitizeMediaUrl(src, 'image') || '',
     alt: props.alt || '',
-    title: props.title || '',
-    width: props.width || '',
-    height: props.height || '',
-    class: props.class || '',
   }
 })
 
@@ -131,10 +97,6 @@ onMounted(() => {
         v-if="hasValidSrc"
         :src="imageAttrs.src"
         :alt="imageAttrs.alt"
-        :title="imageAttrs.title"
-        :width="imageAttrs.width || undefined"
-        :height="imageAttrs.height || undefined"
-        :class="imageAttrs.class"
         @click="isPopoverOpen = true"
       >
 
