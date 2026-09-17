@@ -16,15 +16,15 @@ pnpm dev:prepare
 pnpm pack --pack-destination artifacts
 ```
 
-Copy `artifacts/nuxt-studio-1.7.0-pdf.7.tgz` into your application's `vendor/` directory, then run there:
+Copy `artifacts/nuxt-studio-1.7.0-pdf.8.tgz` into your application's `vendor/` directory, then run there:
 
 ```sh
-pnpm add ./vendor/nuxt-studio-1.7.0-pdf.7.tgz
+pnpm add ./vendor/nuxt-studio-1.7.0-pdf.8.tgz
 ```
 
 Keep `nuxt-studio` in `modules` in `nuxt.config.ts`; the package name is unchanged. Keep Studio's repository configuration pointed at **your application's content repository**, not this module fork.
 
-For several consuming projects, publish versioned builds under your own npm scope, then install with an alias such as `nuxt-studio@npm:@tasiotas/nuxt-studio@1.7.0-pdf.7`. That is a future distribution option; no npm package has been published. Avoid following a moving Git branch in production.
+For several consuming projects, publish versioned builds under your own npm scope, then install with an alias such as `nuxt-studio@npm:@tasiotas/nuxt-studio@1.7.0-pdf.8`. That is a future distribution option; no npm package has been published. Avoid following a moving Git branch in production.
 
 ## Maintaining the fork
 
