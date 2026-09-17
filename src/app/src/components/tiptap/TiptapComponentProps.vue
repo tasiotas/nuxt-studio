@@ -129,18 +129,6 @@ function checkNestedUpdates(parentKey: string, updatedChildren: FormTree, origin
 }
 
 function normalizePropsTree(tree: FormTree): FormTree {
-  // Always add class prop by default
-  if (!tree.class) {
-    tree.class = {
-      id: `#${flatCase(componentName.value)}/class`,
-      key: 'class',
-      title: 'Class',
-      value: props.node?.attrs?.props?.class || '',
-      type: 'string',
-      default: '',
-    }
-  }
-
   // Always remove __tiptapWrap prop by default
   if (tree[':__tiptapWrap']) {
     Reflect.deleteProperty(tree, ':__tiptapWrap')

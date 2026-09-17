@@ -73,6 +73,63 @@ describe('props', () => {
       },
     })
 
+    const stringProp = (name: string): PropertyMeta => ({
+      name,
+      global: false,
+      description: '',
+      tags: [],
+      required: false,
+      type: 'string | undefined',
+      schema: 'string | undefined',
+      declarations: [],
+    })
+
+    const componentNode = (props: Record<string, unknown> = {}) => ({
+      type: { name: 'element' },
+      attrs: { tag: 'TestComponent', props },
+    }) as unknown as ProseMirrorNode
+
+    test('does not add class when it is neither declared nor present', () => {
+      const formTree = buildFormTreeFromProps(componentNode(), createComponentMeta([stringProp('title')]))
+
+      expect(formTree).not.toHaveProperty('class')
+      expect(formTree).toHaveProperty('title')
+    })
+
+    test('shows class when it is explicitly declared by the component', () => {
+      const formTree = buildFormTreeFromProps(componentNode(), createComponentMeta([stringProp('class')]))
+
+      expect(formTree.class).toMatchObject({
+        key: 'class',
+        title: 'Class',
+        value: '',
+        custom: false,
+        type: 'string',
+      })
+    })
+
+    test('preserves an existing undeclared class through custom-prop conversion', () => {
+      const formTree = buildFormTreeFromProps(
+        componentNode({ class: 'featured-card' }),
+        createComponentMeta([stringProp('title')]),
+      )
+
+      expect(formTree.class).toMatchObject({
+        key: 'class',
+        value: 'featured-card',
+        custom: true,
+        type: 'string',
+      })
+      expect(formTreeToComponentProps(formTree)).toEqual({ class: 'featured-card' })
+    })
+
+    test('editing another prop does not introduce an empty class', () => {
+      const formTree = buildFormTreeFromProps(componentNode(), createComponentMeta([stringProp('title')]))
+      formTree.title.value = 'Updated title'
+
+      expect(formTreeToComponentProps(formTree)).toEqual({ title: 'Updated title' })
+    })
+
     test('generate JSType props from meta', () => {
       const props: PropertyMeta[] = [
         {
