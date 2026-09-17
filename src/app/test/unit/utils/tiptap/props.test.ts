@@ -2,7 +2,7 @@ import { expect, test, describe } from 'vitest'
 import type { Node as ProseMirrorNode } from '@tiptap/pm/model'
 import type { JSType } from 'untyped'
 import type { PropertyMeta } from 'vue-component-meta'
-import { buildAttrs, buildFormTreeFromProps, convertStringToArray, convertStringToValue, normalizeProps } from '../../../../src/utils/tiptap/props'
+import { buildAttrs, buildFormTreeFromProps, convertStringToArray, convertStringToValue, formTreeToComponentProps, normalizeProps } from '../../../../src/utils/tiptap/props'
 import { buttonPropsSchema, iconPropsSchema } from '../../../mocks/props'
 import type { ComponentMeta } from '../../../../src/types/component'
 
@@ -44,6 +44,20 @@ describe('props', () => {
 
       // Default case (unknown type)
       expect(convertStringToValue('any value', 'array' as JSType)).toEqual([])
+    })
+  })
+
+  describe('formTreeToComponentProps', () => {
+    test('serializes intrinsic dimensions using numeric component prop bindings', () => {
+      expect(formTreeToComponentProps({
+        'src': { id: '#blog-image/src', key: 'src', type: 'string', title: 'Src', value: '/image.jpg' },
+        ':width': { id: '#blog-image/:width', key: ':width', type: 'number', title: 'Width', value: 1588 },
+        ':height': { id: '#blog-image/:height', key: ':height', type: 'number', title: 'Height', value: 2048 },
+      })).toEqual({
+        'src': '/image.jpg',
+        ':width': '1588',
+        ':height': '2048',
+      })
     })
   })
 

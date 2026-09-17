@@ -6,6 +6,7 @@ import type { FormItem, FormTree } from '../../types'
 import type { ComponentMeta } from '../../types/editor'
 import type { PropertyMeta, PropertyMetaSchema } from 'vue-component-meta'
 import type { ElementNodeAttributes } from 'comark'
+import { isEmpty } from '../object'
 
 const HIDDEN_PROPS = [
   'ui',
@@ -156,6 +157,29 @@ export function normalizeProps(nodeProps: Record<string, unknown>, extraProps: o
 }
 
 export const stripBindingPrefix = (key: string): string => (key.startsWith(':') ? key.slice(1) : key)
+
+export function formTreeToComponentProps(tree: FormTree): Record<string, unknown> {
+  const result: Record<string, unknown> = {}
+
+  for (const key of Object.keys(tree)) {
+    const prop = tree[key]
+
+    let value = prop.value
+    if (prop.key === 'rel' && value === 'Default value applied') {
+      value = 'nofollow,noopener,noreferrer'
+    }
+
+    if (['boolean', 'number'].includes(typeof value) || !isEmpty(value as Record<string, unknown>)) {
+      result[prop.key!] = typeof value === 'string' ? value : JSON.stringify(value)
+    }
+
+    if (prop.default === value && prop.key) {
+      Reflect.deleteProperty(result, prop.key)
+    }
+  }
+
+  return result
+}
 
 // Stored attrs may be kebab-cased while meta declares props in camelCase (e.g. `foo-bar` vs `fooBar`)
 const resolveNodePropValue = (nodeProps: Record<string, unknown>, key: string): unknown => {

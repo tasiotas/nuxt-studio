@@ -1,13 +1,26 @@
 // @vitest-environment happy-dom
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createApp, defineComponent, h, nextTick, ref, type ComponentPublicInstance } from 'vue'
 import { z } from 'zod'
-import type { FormItem, TreeItem } from '../../src/types'
+import type { FormItem, FormTree, ImageMediaSelection, TreeItem } from '../../src/types'
+import FormInput from '../../src/components/form/FormInput.vue'
 import InputMedia from '../../src/components/form/input/InputMedia.vue'
 import InputText from '../../src/components/form/input/InputText.vue'
+import InputWrapper from '../../src/components/form/input/InputWrapper.vue'
 import TiptapExtensionImagePicker from '../../src/components/tiptap/extension/TiptapExtensionImagePicker.vue'
 import TiptapExtensionVideoPicker from '../../src/components/tiptap/extension/TiptapExtensionVideoPicker.vue'
-import { getMediaThumbnailUrl } from '../../src/utils/media'
+import { getMediaFullUrl, getMediaThumbnailUrl } from '../../src/utils/media'
+
+type PendingImage = {
+  naturalWidth: number
+  naturalHeight: number
+  onload: (() => void) | null
+  onerror: (() => void) | null
+}
+
+const pendingImages: Array<{ src: string, image: PendingImage }> = []
+let imageLoadMode: 'success' | 'error' | 'deferred' = 'success'
+let intrinsicDimensions = { width: 1588, height: 2048 }
 
 const mocks = vi.hoisted(() => ({
   root: [] as TreeItem[],
@@ -60,9 +73,30 @@ type NodePickerState = {
   handleVideoSelect?: (media: TreeItem | null) => Promise<void>
 }
 const cleanup: (() => void)[] = []
+beforeEach(() => {
+  imageLoadMode = 'success'
+  intrinsicDimensions = { width: 1588, height: 2048 }
+  pendingImages.splice(0)
+  vi.stubGlobal('Image', class {
+    naturalWidth = 0
+    naturalHeight = 0
+    onload: (() => void) | null = null
+    onerror: (() => void) | null = null
+
+    set src(src: string) {
+      const image = this as PendingImage
+      image.naturalWidth = intrinsicDimensions.width
+      image.naturalHeight = intrinsicDimensions.height
+      pendingImages.push({ src, image })
+      if (imageLoadMode === 'success') queueMicrotask(() => image.onload?.())
+      if (imageLoadMode === 'error') queueMicrotask(() => image.onerror?.())
+    }
+  })
+})
 afterEach(() => {
   cleanup.splice(0).forEach(fn => fn())
   vi.clearAllMocks()
+  vi.unstubAllGlobals()
 })
 const file = (name: string, routePath?: string): TreeItem => ({ name, fsPath: `documents/${name}`, routePath, type: 'file', prefix: null })
 
@@ -98,9 +132,14 @@ function mountTextPicker(external = false, initialValue = '') {
   mocks.external = external
   const model = ref<string | number>(initialValue)
   const picker = ref<ComponentPublicInstance>()
+  const selections: ImageMediaSelection[] = []
   const formItem = { id: 'BlogFigure/src', key: 'src', title: 'Source', type: 'string' } as FormItem
   const app = createApp(defineComponent({ setup: () => () => h(InputText, {
-    'ref': picker, formItem, 'modelValue': model.value, 'onUpdate:modelValue': (value: string | number) => { model.value = value },
+    'ref': picker,
+    formItem,
+    'modelValue': model.value,
+    'onUpdate:modelValue': (value: string | number) => { model.value = value },
+    'onImageSelected': (selection: ImageMediaSelection) => selections.push(selection),
   }) }))
   app.config.globalProperties.$t = (key: string) => key
   const stub = defineComponent({ setup: (_, { slots }) => () => h('div', slots.default?.()) })
@@ -108,7 +147,43 @@ function mountTextPicker(external = false, initialValue = '') {
   const container = document.createElement('div')
   app.mount(container)
   cleanup.push(() => app.unmount())
-  return { model, state: (picker.value!.$ as unknown as { setupState: TextPickerState }).setupState }
+  return { model, selections, state: (picker.value!.$ as unknown as { setupState: TextPickerState }).setupState }
+}
+
+function mountComponentImageForm(media: TreeItem, includeDimensions = true) {
+  const children: FormTree = {
+    src: { id: '#blog-image/src', key: 'src', title: 'Src', type: 'string', value: '' },
+  }
+  if (includeDimensions) {
+    children[':width'] = { id: '#blog-image/:width', key: ':width', title: 'Width', type: 'number', value: undefined }
+    children[':height'] = { id: '#blog-image/:height', key: ':height', title: 'Height', type: 'number', value: undefined }
+  }
+
+  const form = ref<FormTree>({
+    BlogImage: { id: '#blog-image', title: 'BlogImage', type: 'object', children },
+  })
+  const app = createApp(defineComponent({ setup: () => () => h(FormInput, {
+    'formItem': form.value.BlogImage.children!.src,
+    'modelValue': form.value,
+    'onUpdate:modelValue': (value: FormTree) => { form.value = value },
+  }) }))
+  app.config.globalProperties.$t = (key: string) => key
+  const passthrough = defineComponent({ setup: (_, { slots }) => () => h('div', [
+    ...(slots.default?.() || []), ...(slots.trailing?.() || []),
+  ]) })
+  for (const name of ['UFormField', 'UInput', 'UTooltip', 'UButton', 'UIcon']) app.component(name, passthrough)
+  app.component('InputWrapper', InputWrapper)
+  app.component('ModalMediaPicker', defineComponent({
+    emits: ['select'],
+    setup: (_, { emit }) => () => h('button', {
+      'data-testid': 'select-component-image',
+      'onClick': () => emit('select', media),
+    }),
+  }))
+  const container = document.createElement('div')
+  app.mount(container)
+  cleanup.push(() => app.unmount())
+  return { container, form }
 }
 
 function mountNodePicker(component: typeof TiptapExtensionImagePicker | typeof TiptapExtensionVideoPicker) {
@@ -236,6 +311,40 @@ describe('schema media picker', () => {
 })
 
 describe('generic component media picker', () => {
+  it('updates a component src and its width/height props from one image selection', async () => {
+    const { container, form } = mountComponentImageForm(file('photo.png', '/images/photo.png'))
+
+    const selectButton = container.querySelector('[data-testid="select-component-image"]') as HTMLButtonElement
+    selectButton.click()
+
+    await vi.waitFor(() => {
+      expect(form.value.BlogImage.children?.src.value).toBe('/images/photo.png')
+      expect(form.value.BlogImage.children?.[':width'].value).toBe(1588)
+      expect(form.value.BlogImage.children?.[':height'].value).toBe(2048)
+    })
+  })
+
+  it('leaves components exposing only src unchanged apart from the selected URL', async () => {
+    const { container, form } = mountComponentImageForm(file('photo.png', '/images/photo.png'), false)
+
+    const selectButton = container.querySelector('[data-testid="select-component-image"]') as HTMLButtonElement
+    selectButton.click()
+
+    await vi.waitFor(() => expect(form.value.BlogImage.children?.src.value).toBe('/images/photo.png'))
+    expect(Object.keys(form.value.BlogImage.children || {})).toEqual(['src'])
+  })
+
+  it('loads the full selected image and emits its intrinsic dimensions with src', async () => {
+    const media = file('photo.png', '/images/photo.png')
+    const { model, selections, state } = mountTextPicker(false)
+
+    await state.handleMediaSelect(media)
+
+    expect(pendingImages[0].src).toBe(getMediaFullUrl('/images/photo.png'))
+    expect(model.value).toBe('/images/photo.png')
+    expect(selections).toEqual([{ src: '/images/photo.png', width: 1588, height: 2048 }])
+  })
+
   it('saves the public URL returned by external media storage', async () => {
     const media = file('photo.png', 'photo.png')
     const url = 'https://cdn.example.com/storage-prefix/documents/photo.png'
@@ -292,6 +401,39 @@ describe('generic component media picker', () => {
     expect(model.value).toBe('')
     expect(state.isMediaPickerOpen).toBe(false)
     expect(mocks.get).not.toHaveBeenCalled()
+  })
+
+  it('emits no dimensions when the full image cannot be loaded', async () => {
+    imageLoadMode = 'error'
+    const { model, selections, state } = mountTextPicker(false, '/images/old.png')
+
+    await state.handleMediaSelect(file('broken.png', '/images/broken.png'))
+
+    expect(model.value).toBe('/images/broken.png')
+    expect(selections).toEqual([{ src: '/images/broken.png' }])
+  })
+
+  it('does not let dimensions from an earlier selection overwrite the latest selection', async () => {
+    imageLoadMode = 'deferred'
+    const { model, selections, state } = mountTextPicker(false)
+
+    const firstSelection = state.handleMediaSelect(file('first.png', '/images/first.png'))
+    await Promise.resolve()
+    const secondSelection = state.handleMediaSelect(file('second.png', '/images/second.png'))
+    await Promise.resolve()
+
+    pendingImages[1].image.naturalWidth = 1200
+    pendingImages[1].image.naturalHeight = 800
+    pendingImages[1].image.onload?.()
+    await secondSelection
+
+    pendingImages[0].image.naturalWidth = 400
+    pendingImages[0].image.naturalHeight = 300
+    pendingImages[0].image.onload?.()
+    await firstSelection
+
+    expect(model.value).toBe('/images/second.png')
+    expect(selections).toEqual([{ src: '/images/second.png', width: 1200, height: 800 }])
   })
 })
 

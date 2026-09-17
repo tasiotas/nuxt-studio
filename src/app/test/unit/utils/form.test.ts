@@ -1,7 +1,7 @@
 import type { FormItem, FormTree } from '../../../src/types/form'
 import type { Draft07 } from '@nuxt/content'
 import { expect, test, describe } from 'vitest'
-import { buildFormTreeFromSchema, applyValueById, applyValuesToFormTree, getUpdatedTreeItem } from '../../../src/utils/form'
+import { buildFormTreeFromSchema, applyImageSelectionById, applyValueById, applyValuesToFormTree, getUpdatedTreeItem } from '../../../src/utils/form'
 import { farnabazFormTree, larbishFormTree } from '../../mocks/form'
 import { postsSchema } from '../../mocks/schema'
 
@@ -1055,6 +1055,56 @@ describe('applyValueById', () => {
         },
       },
     })
+  })
+})
+
+describe('applyImageSelectionById', () => {
+  const componentForm = (): FormTree => ({
+    BlogImage: {
+      id: '#blog-image',
+      type: 'object',
+      title: 'BlogImage',
+      children: {
+        'src': { id: '#blog-image/src', key: 'src', type: 'string', title: 'Src', value: '/old.jpg' },
+        ':width': { id: '#blog-image/:width', key: ':width', type: 'number', title: 'Width', value: 320 },
+        ':height': { id: '#blog-image/:height', key: ':height', type: 'number', title: 'Height', value: 200 },
+      },
+    },
+  })
+
+  test('updates src and numeric width/height siblings together', () => {
+    const result = applyImageSelectionById(componentForm(), '#blog-image/src', {
+      src: '/original.jpg',
+      width: 1588,
+      height: 2048,
+    })
+
+    expect(result.BlogImage.children?.src.value).toBe('/original.jpg')
+    expect(result.BlogImage.children?.[':width'].value).toBe(1588)
+    expect(result.BlogImage.children?.[':height'].value).toBe(2048)
+  })
+
+  test('does not add dimensions when the component does not expose both numeric props', () => {
+    const form = componentForm()
+    delete form.BlogImage.children?.[':height']
+
+    const result = applyImageSelectionById(form, '#blog-image/src', {
+      src: '/original.jpg',
+      width: 1588,
+      height: 2048,
+    })
+
+    expect(result.BlogImage.children?.src.value).toBe('/original.jpg')
+    expect(result.BlogImage.children?.[':width'].value).toBe(320)
+    expect(result.BlogImage.children?.[':height']).toBeUndefined()
+  })
+
+  test('clears stale dimensions when intrinsic dimension loading fails', () => {
+    const result = applyImageSelectionById(componentForm(), '#blog-image/src', { src: '/broken.jpg' })
+
+    expect(result.BlogImage.children?.src.value).toBe('/broken.jpg')
+    expect(result.BlogImage.children?.[':width'].value).toBeUndefined()
+    expect(result.BlogImage.children?.[':height'].value).toBeUndefined()
   })
 })
 

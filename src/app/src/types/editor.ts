@@ -16,6 +16,11 @@ export interface ComponentMeta {
 export type FormInputsTypes = JSType | 'icon' | 'media' | 'file' | 'date' | 'datetime' | 'textarea'
 
 export type FormTree = Record<string, FormItem>
+export type ImageMediaSelection = {
+  src: string
+  width?: number
+  height?: number
+}
 export type FormItem = {
   id: string
   type: FormInputsTypes

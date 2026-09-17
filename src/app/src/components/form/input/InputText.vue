@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import type { FormItem, TreeItem } from '../../../types'
+import type { FormItem, ImageMediaSelection, TreeItem } from '../../../types'
 import type { PropType } from 'vue'
 import { computed, ref } from 'vue'
 import { useStudio } from '../../../composables/useStudio'
-import { resolveMediaSelectionUrl } from '../../../utils/mediaPicker'
+import { getMediaFullUrl } from '../../../utils/media'
+import { loadImageDimensions, resolveMediaSelectionUrl } from '../../../utils/mediaPicker'
 
 const props = defineProps({
   formItem: {
@@ -13,10 +14,14 @@ const props = defineProps({
 })
 
 const model = defineModel<string | number>({ default: '' })
+const emit = defineEmits<{
+  imageSelected: [selection: ImageMediaSelection]
+}>()
 
 const { host } = useStudio()
 const isMediaPickerOpen = ref(false)
 const mediaSelectionError = ref('')
+let mediaSelectionId = 0
 
 const hasOptions = computed(() => props.formItem?.options && props.formItem.options.length > 0)
 
@@ -73,10 +78,35 @@ const isIconProp = computed(() => {
 })
 
 async function handleMediaSelect(media: TreeItem | null) {
+  const selectionId = ++mediaSelectionId
   // If null, leave field empty for manual entry
   mediaSelectionError.value = ''
+
+  if (!media) {
+    model.value = ''
+    if (isImageSrcProp.value) emit('imageSelected', { src: '' })
+    isMediaPickerOpen.value = false
+    return
+  }
+
   try {
-    model.value = media ? await resolveMediaSelectionUrl(media, host) : ''
+    const src = await resolveMediaSelectionUrl(media, host)
+    if (selectionId !== mediaSelectionId) return
+
+    let dimensions: { width: number, height: number } | undefined
+    if (isImageSrcProp.value) {
+      try {
+        dimensions = await loadImageDimensions(getMediaFullUrl(src))
+      }
+      catch {
+        dimensions = undefined
+      }
+    }
+
+    if (selectionId !== mediaSelectionId) return
+
+    model.value = src
+    if (isImageSrcProp.value) emit('imageSelected', { src, ...dimensions })
     isMediaPickerOpen.value = false
   }
   catch (error) {
@@ -85,9 +115,12 @@ async function handleMediaSelect(media: TreeItem | null) {
 }
 
 function handleMediaCancel() {
+  mediaSelectionId++
   mediaSelectionError.value = ''
   isMediaPickerOpen.value = false
 }
+
+const isImageSrcProp = computed(() => isImageProp.value && props.formItem.key?.replace(/^:/, '').toLowerCase() === 'src')
 </script>
 
 <template>

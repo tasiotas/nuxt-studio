@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import type { PropType, Component } from 'vue'
-import type { FormItem, FormInputsTypes } from '../../../types'
+import type { FormItem, FormInputsTypes, ImageMediaSelection } from '../../../types'
 import { formItemInputLabel } from '../../../utils/form'
 import InputBoolean from './InputBoolean.vue'
 import InputDate from './InputDate.vue'
@@ -38,6 +38,9 @@ const props = defineProps({
 })
 
 const model = defineModel<unknown>({ required: true })
+const emit = defineEmits<{
+  imageSelected: [selection: ImageMediaSelection]
+}>()
 
 // Nested form state for arrays/objects displayed as overlays
 const nestedFormOpen = ref(false)
@@ -152,6 +155,7 @@ function closeNestedForm() {
       v-else
       v-model="model"
       :form-item="formItem"
+      @image-selected="emit('imageSelected', $event)"
     />
   </template>
 </template>

@@ -1,5 +1,5 @@
 import type { Draft07, Draft07DefinitionProperty, Draft07DefinitionPropertyAnyOf, Draft07DefinitionPropertyAllOf, Draft07DefinitionPropertyOneOf, EditorOptions } from '@nuxt/content'
-import type { FormTree, FormItem } from '../types'
+import type { FormTree, FormItem, ImageMediaSelection } from '../types'
 import { upperFirst, titleCase } from 'scule'
 import { omit } from './object'
 import type { MediaEditorOptions } from '../../../module/src/schema'
@@ -273,6 +273,59 @@ export const applyValueById = (form: FormTree, id: string, value: unknown): Form
       [key]: form[key],
     }
   }, {})
+}
+
+const normalizedFormItemKey = (item: FormItem) => item.key?.replace(/^:/, '').toLowerCase()
+
+/**
+ * Apply an image src selection and, when present, its numeric width/height sibling props.
+ * Missing or invalid dimensions deliberately clear both sibling values so metadata from a
+ * previously selected image cannot survive a failed load.
+ */
+export const applyImageSelectionById = (form: FormTree, id: string, selection: ImageMediaSelection): FormTree => {
+  const sourceKey = Object.keys(form).find(key => form[key].id === id)
+
+  if (sourceKey) {
+    const source = form[sourceKey]
+    const updated = {
+      ...form,
+      [sourceKey]: {
+        ...source,
+        value: selection.src,
+      },
+    }
+
+    if (normalizedFormItemKey(source) !== 'src') return updated
+
+    const widthKey = Object.keys(form).find(key => normalizedFormItemKey(form[key]) === 'width' && form[key].type === 'number')
+    const heightKey = Object.keys(form).find(key => normalizedFormItemKey(form[key]) === 'height' && form[key].type === 'number')
+    if (!widthKey || !heightKey) return updated
+
+    const hasDimensions = Number.isFinite(selection.width) && selection.width! > 0
+      && Number.isFinite(selection.height) && selection.height! > 0
+
+    return {
+      ...updated,
+      [widthKey]: {
+        ...form[widthKey],
+        value: hasDimensions ? selection.width : undefined,
+      },
+      [heightKey]: {
+        ...form[heightKey],
+        value: hasDimensions ? selection.height : undefined,
+      },
+    }
+  }
+
+  return Object.keys(form).reduce((updated, key) => {
+    const item = form[key]
+    return {
+      ...updated,
+      [key]: item.children
+        ? { ...item, children: applyImageSelectionById(item.children, id, selection) }
+        : item,
+    }
+  }, {} as FormTree)
 }
 
 // Recursively compare form trees to find the updated item and return it

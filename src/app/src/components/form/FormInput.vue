@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import type { FormItem, FormTree } from '../../types'
+import type { FormItem, FormTree, ImageMediaSelection } from '../../types'
 import type { PropType } from 'vue'
 import { computed, ref, watch } from 'vue'
-import { formItemInputLabel, applyValueById } from '../../utils/form'
+import { formItemInputLabel, applyImageSelectionById, applyValueById } from '../../utils/form'
 
 const props = defineProps({
   formItem: {
@@ -56,6 +56,10 @@ function computeValue(formItem: FormItem): unknown {
       return value ?? null
   }
 }
+
+function handleImageSelection(selection: ImageMediaSelection) {
+  form.value = applyImageSelectionById(form.value, props.formItem.id, selection)
+}
 </script>
 
 <template>
@@ -87,6 +91,7 @@ function computeValue(formItem: FormItem): unknown {
       v-model="model"
       :form-item="formItem"
       :level="1"
+      @image-selected="handleImageSelection"
     />
   </UFormField>
 </template>
