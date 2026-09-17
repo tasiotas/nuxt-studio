@@ -158,6 +158,39 @@ export function normalizeProps(nodeProps: Record<string, unknown>, extraProps: o
 
 export const stripBindingPrefix = (key: string): string => (key.startsWith(':') ? key.slice(1) : key)
 
+export const isEmptyRequiredValue = (value: unknown): boolean => {
+  if (value === null || value === undefined) return true
+  if (typeof value === 'string') return value.trim() === ''
+  if (Array.isArray(value)) return value.length === 0
+  if (typeof value === 'object') return Object.keys(value).length === 0
+  return false
+}
+
+export const isFormItemMissingRequired = (item: FormItem): boolean => {
+  if (item.hidden) return false
+  if (item.required && isEmptyRequiredValue(item.value)) return true
+
+  if (item.type === 'array') {
+    const children = item.arrayItemForm?.children
+    if (!children || !Array.isArray(item.value)) return false
+
+    return item.value.some((entry) => {
+      if (!entry || typeof entry !== 'object' || Array.isArray(entry)) return false
+      return Object.values(children).some(child => isFormItemMissingRequired({
+        ...child,
+        value: (entry as Record<string, unknown>)[stripBindingPrefix(child.key || '')],
+      }))
+    })
+  }
+
+  return item.children ? Object.values(item.children).some(isFormItemMissingRequired) : false
+}
+
+export const hasMissingRequiredProps = (node: ProseMirrorNode, componentMeta?: ComponentMeta): boolean => {
+  if (!componentMeta) return false
+  return Object.values(buildFormTreeFromProps(node, componentMeta)).some(isFormItemMissingRequired)
+}
+
 export function formTreeToComponentProps(tree: FormTree): Record<string, unknown> {
   const result: Record<string, unknown> = {}
 
@@ -320,6 +353,8 @@ const buildPropItem = (componentId: string, prop: PropertyMeta, nodeProps: Recor
     type,
     custom: false,
     default: resolvedDefault,
+    ...(prop.required ? { required: true } : {}),
+    ...(prop.tags?.some(tag => tag.name === 'hidden') ? { hidden: true } : {}),
   }
 
   // Handle array items schema
@@ -512,6 +547,10 @@ const computeTypeAndOptions = (componentId: string, key: string, prop: PropertyM
 
 const hideProp = (prop: FormItem, isNuxtUIComponent: boolean) => {
   const key = prop.key!.replace(':', '')
+
+  if (prop.hidden) {
+    return true
+  }
 
   // Hide some props only for Nuxt UI components
   if (!isNuxtUIComponent) {

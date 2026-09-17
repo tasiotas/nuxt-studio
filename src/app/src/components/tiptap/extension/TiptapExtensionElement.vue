@@ -6,6 +6,7 @@ import { titleCase, kebabCase } from 'scule'
 import type { Node as ProseMirrorNode } from '@tiptap/pm/model'
 import { useStudio } from '../../../composables/useStudio'
 import { standardNuxtUIComponents } from '../../../utils/tiptap/editor'
+import { hasMissingRequiredProps } from '../../../utils/tiptap/props'
 
 const nodeProps = defineProps(nodeViewProps)
 
@@ -23,6 +24,7 @@ const slots = computed(() => componentMeta.value?.meta.slots || [])
 const hasSlots = computed(() => nodeProps.node.content.size > 0)
 const componentProps = computed(() => nodeProps.node.attrs.props || {})
 const componentMeta = computed(() => host.meta.editor.components.get().find(c => kebabCase(c.name) === kebabCase(componentTag.value)))
+const hasMissingRequired = computed(() => hasMissingRequiredProps(nodeProps.node, componentMeta.value))
 
 // Nuxt UI Components bindings
 const nuxtUIComponent = computed(() => standardNuxtUIComponents[componentTag.value])
@@ -122,6 +124,13 @@ function updateComponentProps(props: Record<string, unknown>) {
           >
             {{ displayName }}
           </span>
+
+          <span
+            v-if="hasMissingRequired"
+            class="text-error text-sm font-bold leading-none"
+            aria-label="Required component property is empty"
+            title="Required component property is empty"
+          >!</span>
 
           <UBadge
             v-if="Object.keys(componentProps).length > 0"

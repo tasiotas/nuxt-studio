@@ -2,7 +2,7 @@ import { expect, test, describe } from 'vitest'
 import type { Node as ProseMirrorNode } from '@tiptap/pm/model'
 import type { JSType } from 'untyped'
 import type { PropertyMeta } from 'vue-component-meta'
-import { buildAttrs, buildFormTreeFromProps, convertStringToArray, convertStringToValue, formTreeToComponentProps, normalizeProps } from '../../../../src/utils/tiptap/props'
+import { buildAttrs, buildFormTreeFromProps, convertStringToArray, convertStringToValue, formTreeToComponentProps, hasMissingRequiredProps, normalizeProps } from '../../../../src/utils/tiptap/props'
 import { buttonPropsSchema, iconPropsSchema } from '../../../mocks/props'
 import type { ComponentMeta } from '../../../../src/types/component'
 
@@ -121,6 +121,27 @@ describe('props', () => {
         type: 'string',
       })
       expect(formTreeToComponentProps(formTree)).toEqual({ class: 'featured-card' })
+    })
+
+    test('marks required props and detects when their value is empty', () => {
+      const requiredProp = { ...stringProp('title'), required: true }
+      const meta = createComponentMeta([requiredProp])
+
+      expect(buildFormTreeFromProps(componentNode(), meta).title.required).toBe(true)
+      expect(hasMissingRequiredProps(componentNode(), meta)).toBe(true)
+      expect(hasMissingRequiredProps(componentNode({ title: 'Hello' }), meta)).toBe(false)
+    })
+
+    test('hides props tagged with @hidden', () => {
+      const hiddenProp = {
+        ...stringProp('generatedId'),
+        required: true,
+        tags: [{ name: 'hidden', text: undefined }],
+      }
+
+      const meta = createComponentMeta([hiddenProp])
+      expect(buildFormTreeFromProps(componentNode(), meta).generatedId.hidden).toBe(true)
+      expect(hasMissingRequiredProps(componentNode(), meta)).toBe(false)
     })
 
     test('editing another prop does not introduce an empty class', () => {
@@ -1132,6 +1153,7 @@ describe('props', () => {
           type: 'array',
           custom: false,
           default: [],
+          required: true,
           arrayItemForm: {
             id: '#array/items',
             type: 'object',
@@ -1145,6 +1167,7 @@ describe('props', () => {
                 value: '',
                 default: '',
                 custom: false,
+                required: true,
               },
               content: {
                 id: '#array/items/content',
@@ -1154,6 +1177,7 @@ describe('props', () => {
                 value: '',
                 default: '',
                 custom: false,
+                required: true,
               },
               ui: {
                 id: '#array/items/ui',
@@ -1311,6 +1335,7 @@ describe('props', () => {
           type: 'array',
           custom: false,
           default: [],
+          required: true,
           arrayItemForm: {
             id: '#array/items',
             type: 'string',

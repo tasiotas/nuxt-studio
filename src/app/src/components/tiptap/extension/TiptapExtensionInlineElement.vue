@@ -7,6 +7,7 @@ import { useStudio } from '../../../composables/useStudio'
 import { isEmpty } from '../../../utils/object'
 import { standardNuxtUIComponents } from '../../../utils/tiptap/editor'
 import TiptapComponentProps from '../TiptapComponentProps.vue'
+import { hasMissingRequiredProps } from '../../../utils/tiptap/props'
 
 const nodeProps = defineProps(nodeViewProps)
 
@@ -17,6 +18,7 @@ const isPopoverOpen = ref(false)
 const componentTag = computed(() => nodeProps.node.attrs.tag)
 const componentName = computed(() => titleCase(componentTag.value).replace(/^U /, ''))
 const componentMeta = computed(() => host.meta.editor.components.get().find(c => kebabCase(c.name) === kebabCase(componentTag.value)))
+const hasMissingRequired = computed(() => hasMissingRequiredProps(nodeProps.node, componentMeta.value))
 const defaultSlot = computed(() => (componentMeta.value?.meta?.slots || []).find(s => s.name === 'default'))
 const hasDefaultSlot = computed(() => !isEmpty(defaultSlot.value as never))
 const activeTab = ref<'content' | 'props'>(hasDefaultSlot.value ? 'content' : 'props')
@@ -88,6 +90,12 @@ function handleKeyDown(event: KeyboardEvent) {
       >
         {{ displayName }}
       </div>
+      <span
+        v-if="hasMissingRequired"
+        class="text-error text-sm font-bold leading-none"
+        aria-label="Required component property is empty"
+        title="Required component property is empty"
+      >!</span>
       <NodeViewContent
         class="text-sm text-default truncate! max-w-40"
         as="span"
