@@ -46,7 +46,18 @@ function normalizeNode(node: MarkdownNode): MarkdownNode {
   if (tag === null) return node // comment
 
   const sortedAttrs = attrs && typeof attrs === 'object'
-    ? Object.fromEntries(Object.entries(attrs as Record<string, unknown>).sort(([a], [b]) => a.localeCompare(b)))
+    ? Object.fromEntries(Object.entries(attrs as Record<string, unknown>).map(([key, value]) => {
+        // MDC and Comark disagree on numeric bindings and scalar types. Canonicalize
+        // only image dimensions on this comparison copy; expressions/booleans stay bound.
+        const dimension = key.replace(/^:/, '')
+        if (tag === 'blog-image' && (dimension === 'width' || dimension === 'height')
+          && !(key.startsWith(':') && Object.hasOwn(attrs, dimension))
+          && (typeof value === 'number' || (typeof value === 'string' && /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?$/i.test(value)))
+          && Number.isFinite(Number(value))) {
+          return [dimension, String(Number(value))]
+        }
+        return [key, value]
+      }).sort(([a], [b]) => String(a).localeCompare(String(b))))
     : attrs
 
   const normalizedChildren = unwrapLeadingDefaultSlot(children as MarkdownNode[]).map(normalizeNode)
